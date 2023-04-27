@@ -824,7 +824,7 @@ int32 Player::getMaxTimer(MirrorTimerType timer)
             {
                 if (!IsAlive())
                     return DISABLED_MIRROR_TIMER;
-                return 1 * IN_MILLISECONDS;
+                return 2020;
             }
         default:
             return 0;
@@ -920,7 +920,7 @@ void Player::HandleDrowning(uint32 time_diff)
             m_MirrorTimer[FIRE_TIMER] -= time_diff;
             if (m_MirrorTimer[FIRE_TIMER] < 0)
             {
-                m_MirrorTimer[FIRE_TIMER] += 1 * IN_MILLISECONDS;
+                m_MirrorTimer[FIRE_TIMER] += 2020;
                 // Calculate and deal damage
                 /// @todo: Check this formula
                 uint32 damage = urand(600, 700);
@@ -1462,7 +1462,10 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
     else
     {
         if (getClass() == CLASS_DEATH_KNIGHT && GetMapId() == 609 && !IsGameMaster() && !HasSpell(50977))
+        {
+            SendTransferAborted(mapid, TRANSFER_ABORT_UNIQUE_MESSAGE, 1);
             return false;
+        }
 
         // far teleport to another map
         Map* oldmap = IsInWorld() ? GetMap() : nullptr;
@@ -1982,19 +1985,26 @@ void Player::RegenerateHealth()
     else if (!IsInCombat() || HasAuraType(SPELL_AURA_MOD_REGEN_DURING_COMBAT))
     {
         addvalue = OCTRegenHPPerSpirit() * HealthIncreaseRate;
+
+        if (!IsStandState())
+        {
+            addvalue *= 1.33f;
+        }
+
+        AuraEffectList const& mModHealthRegenPct = GetAuraEffectsByType(SPELL_AURA_MOD_HEALTH_REGEN_PERCENT);
+        for (AuraEffectList::const_iterator i = mModHealthRegenPct.begin(); i != mModHealthRegenPct.end(); ++i)
+        {
+            AddPct(addvalue, (*i)->GetAmount());
+        }
+
         if (!IsInCombat())
         {
-            AuraEffectList const& mModHealthRegenPct = GetAuraEffectsByType(SPELL_AURA_MOD_HEALTH_REGEN_PERCENT);
-            for (AuraEffectList::const_iterator i = mModHealthRegenPct.begin(); i != mModHealthRegenPct.end(); ++i)
-                AddPct(addvalue, (*i)->GetAmount());
-
             addvalue += GetTotalAuraModifier(SPELL_AURA_MOD_REGEN) * 2 * IN_MILLISECONDS / (5 * IN_MILLISECONDS);
         }
         else if (HasAuraType(SPELL_AURA_MOD_REGEN_DURING_COMBAT))
+        {
             ApplyPct(addvalue, GetTotalAuraModifier(SPELL_AURA_MOD_REGEN_DURING_COMBAT));
-
-        if (!IsStandState())
-            addvalue *= 1.5f;
+        }
     }
 
     // always regeneration bonus (including combat)
@@ -6822,8 +6832,10 @@ void Player::_ApplyWeaponDamage(uint8 slot, ItemTemplate const* proto, ScalingSt
             if (extraDPS)
             {
                 float average = extraDPS * proto->Delay / 1000.0f;
-                minDamage = 0.7f * average;
-                maxDamage = 1.3f * average;
+                float mod = ssv->IsTwoHand(proto->ScalingStatValue) ? 0.2f : 0.3f;
+
+                minDamage = (1.0f - mod) * average;
+                maxDamage = (1.0f + mod) * average;
             }
         }
 
@@ -7216,6 +7228,15 @@ void Player::CastItemCombatSpell(Unit* target, WeaponAttackType attType, uint32 
                 LOG_ERROR("entities.player", "Player::CastItemCombatSpell({}, name: {}, enchant: {}): unknown spell {} is casted, ignoring...",
                                GetGUID().ToString(), GetName(), pEnchant->ID, pEnchant->spellid[s]);
                 continue;
+            }
+
+            if (entry && (entry->attributeMask & ENCHANT_PROC_ATTR_EXCLUSIVE) != 0)
+            {
+                Unit* checkTarget = spellInfo->IsPositive() ? this : target;
+                if (checkTarget->HasAura(spellInfo->Id, GetGUID()))
+                {
+                    continue;
+                }
             }
 
             float chance = pEnchant->amount[s] != 0 ? float(pEnchant->amount[s]) : GetWeaponProcChance();
@@ -11577,7 +11598,6 @@ void Player::SendInitialPacketsAfterAddToMap()
         SendMessageToSet(&data2, true);
     }
 
-    GetAurasForTarget(this);
     SendEnchantmentDurations();                             // must be after add to map
     SendItemDurations();                                    // must be after add to map
     SendQuestGiverStatusMultiple();
@@ -11958,9 +11978,9 @@ void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
     }
 }
 
-void Player::GetAurasForTarget(Unit* target) // pussywizard: contact before changing ANYTHING!
+void Player::GetAurasForTarget(Unit* target, bool force /*= false*/)
 {
-    if (!target/* || target->GetVisibleAuras()->empty()*/)                  // speedup things
+    if (!target || (!force && target->GetVisibleAuras()->empty()))    // speedup things
         return;
 
     /*! Blizz sends certain movement packets sometimes even before CreateObject
@@ -12566,15 +12586,18 @@ bool Player::isHonorOrXPTarget(Unit* victim) const
 
     // Victim level less gray level
     if (v_level <= k_grey)
+    {
         return false;
+    }
 
     if (victim->GetTypeId() == TYPEID_UNIT)
     {
-        if (victim->IsTotem() ||
-                victim->IsPet() ||
-                victim->ToCreature()->GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_XP)
+        if (victim->IsTotem() || victim->IsCritter() || victim->IsPet() || (victim->ToCreature()->GetCreatureTemplate()->flags_extra & CREATURE_FLAG_EXTRA_NO_XP))
+        {
             return false;
+        }
     }
+
     return true;
 }
 
@@ -14687,6 +14710,7 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, GetByteValue(PLAYER_FIELD_BYTES, 2));
         stmt->SetData(index++, m_grantableLevels);
         stmt->SetData(index++, _innTriggerId);
+        stmt->SetData(index++, m_extraBonusTalentCount);
     }
     else
     {
@@ -14826,6 +14850,7 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, GetByteValue(PLAYER_FIELD_BYTES, 2));
         stmt->SetData(index++, m_grantableLevels);
         stmt->SetData(index++, _innTriggerId);
+        stmt->SetData(index++, m_extraBonusTalentCount);
 
         stmt->SetData(index++, IsInWorld() && !GetSession()->PlayerLogout() ? 1 : 0);
         // Index
