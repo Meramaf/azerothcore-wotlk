@@ -35,6 +35,7 @@
 #include "Log.h"
 #include "MapMgr.h"
 #include "Metric.h"
+#include "MotdMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -45,7 +46,6 @@
 #include "Realm.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
-#include "ServerMotd.h"
 #include "SharedDefines.h"
 #include "SocialMgr.h"
 #include "SpellAuraEffects.h"
@@ -537,7 +537,11 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
 
             std::shared_ptr<Player> newChar(new Player(this), [](Player* ptr)
             {
-                ptr->CleanupsBeforeDelete();
+                // Only when player is created correctly do clean
+                if (ptr->HasAtLoginFlag(AT_LOGIN_FIRST))
+                {
+                    ptr->CleanupsBeforeDelete();
+                }
                 delete ptr;
             });
 
@@ -823,11 +827,11 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     // Send MOTD
     {
-        SendPacket(Motd::GetMotdPacket());
+        SendPacket(sMotdMgr->GetMotdPacket());
 
         // send server info
         if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
-            chH.PSendSysMessage("%s", GitRevision::GetFullVersion());
+            chH.PSendSysMessage("{}", GitRevision::GetFullVersion());
     }
 
     if (uint32 guildId = sCharacterCache->GetCharacterGuildIdByGuid(pCurrChar->GetGUID()))
@@ -875,7 +879,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
             // send new char string if not empty
             if (!sWorld->GetNewCharString().empty())
-                chH.PSendSysMessage("%s", sWorld->GetNewCharString().c_str());
+                chH.PSendSysMessage("{}", sWorld->GetNewCharString());
         }
     }
 
@@ -888,7 +892,10 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         if (at)
             pCurrChar->TeleportTo(at->target_mapId, at->target_X, at->target_Y, at->target_Z, pCurrChar->GetOrientation());
         else
-            pCurrChar->TeleportTo(pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ, pCurrChar->m_homebindO);
+            pCurrChar->TeleportTo(pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ, pCurrChar->GetOrientation());
+
+        // Probably a hackfix, but currently the best workaround to prevent character names showing as Unknown after teleport out from instances at login.
+        pCurrChar->GetSession()->SendNameQueryOpcode(pCurrChar->GetGUID());
     }
 
     pCurrChar->SendInitialPacketsAfterAddToMap();
@@ -937,7 +944,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     pCurrChar->LoadCorpse(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CORPSE_LOCATION));
 
     // setting Ghost+speed if dead
-    if (pCurrChar->m_deathState != ALIVE)
+    if (pCurrChar->m_deathState != DeathState::Alive)
     {
         // not blizz like, we must correctly save and load player instead...
         if (pCurrChar->getRace() == RACE_NIGHTELF)
@@ -964,14 +971,14 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_RESET_SPELLS))
     {
         pCurrChar->resetSpells();
-        SendNotification(LANG_RESET_SPELLS);
+        ChatHandler(this).SendNotification(LANG_RESET_SPELLS);
     }
 
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_RESET_TALENTS))
     {
         pCurrChar->resetTalents(true);
         pCurrChar->SendTalentsInfoData(false);              // original talents send already in to SendInitialPacketsBeforeAddToMap, resend reset state
-        SendNotification(LANG_RESET_TALENTS);
+        ChatHandler(this).SendNotification(LANG_RESET_TALENTS);
     }
 
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_CHECK_ACHIEVS))
@@ -1037,7 +1044,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         pCurrChar->SetTaxiCheater(true);
 
     if (pCurrChar->IsGameMaster())
-        SendNotification(LANG_GM_ON);
+        ChatHandler(this).SendNotification(LANG_GM_ON);
 
     std::string IP_str = GetRemoteAddress();
     LOG_INFO("entities.player", "Account: {} (IP: {}) Login Character:[{}] ({}) Level: {}",
@@ -1139,11 +1146,11 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
 
     // Send MOTD
     {
-        SendPacket(Motd::GetMotdPacket());
+        SendPacket(sMotdMgr->GetMotdPacket());
 
         // send server info
         if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
-            chH.PSendSysMessage("%s", GitRevision::GetFullVersion());
+            chH.PSendSysMessage("{}", GitRevision::GetFullVersion());
 
         LOG_DEBUG("network.opcode", "WORLD: Sent server info");
     }
@@ -1232,7 +1239,7 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
         sWorld->ShutdownMsg(true, pCurrChar);
 
     if (pCurrChar->IsGameMaster())
-        SendNotification(LANG_GM_ON);
+        ChatHandler(pCurrChar->GetSession()).SendNotification(LANG_GM_ON);
 
     m_playerLoading = false;
 }
@@ -1244,8 +1251,6 @@ void WorldSession::HandlePlayerLoginToCharOutOfWorld(Player* /*pCurrChar*/)
 
 void WorldSession::HandleSetFactionAtWar(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_FACTION_ATWAR");
-
     uint32 repListID;
     uint8  flag;
 
@@ -1292,7 +1297,6 @@ void WorldSession::HandleTutorialReset(WorldPacket& /*recvData*/)
 
 void WorldSession::HandleSetWatchedFactionOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_WATCHED_FACTION");
     uint32 fact;
     recvData >> fact;
     GetPlayer()->SetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, fact);
@@ -1300,7 +1304,6 @@ void WorldSession::HandleSetWatchedFactionOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleSetFactionInactiveOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_FACTION_INACTIVE");
     uint32 replistid;
     uint8 inactive;
     recvData >> replistid >> inactive;
@@ -1804,6 +1807,8 @@ void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_USE");
 
+    std::vector<std::unique_ptr<SavedItem>> savedItems;
+    uint8 errorId = 0;
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
         ObjectGuid itemGuid;
@@ -1829,7 +1834,6 @@ void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
         uint16 dstpos = i | (INVENTORY_SLOT_BAG_0 << 8);
 
         InventoryResult msg;
-
         Item* uItem = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (uItem)
         {
@@ -1849,11 +1853,19 @@ void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
                 msg = _player->CanStoreItem(NULL_BAG, NULL_SLOT, sDest, uItem, false);
                 if (msg == EQUIP_ERR_OK)
                 {
+                    savedItems.emplace_back(std::make_unique<SavedItem>(uItem, dstpos));
                     _player->RemoveItem(INVENTORY_SLOT_BAG_0, i, true);
                     _player->StoreItem(sDest, uItem, true);
                 }
                 else
-                    _player->SendEquipError(msg, uItem, nullptr);
+                {
+                    errorId = 4;
+                    for (uint8_t j = 0; j < savedItems.size(); ++j)
+                    {
+                        _player->SwapItem(savedItems[j].get()->item->GetPos(), savedItems[j].get()->dstpos);
+                    }
+                    break;
+                }
 
                 continue;
             }
@@ -1880,7 +1892,7 @@ void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
     }
 
     WorldPacket data(SMSG_EQUIPMENT_SET_USE_RESULT, 1);
-    data << uint8(0);                                       // 4 - equipment swap failed - inventory is full
+    data << uint8(errorId);                                       // 4 - equipment swap failed - inventory is full
     SendPacket(&data);
 }
 
@@ -2318,7 +2330,6 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
             stmt->SetData(3, loc.GetPositionX());
             stmt->SetData(4, loc.GetPositionY());
             stmt->SetData(5, loc.GetPositionZ());
-            stmt->SetData(6, loc.GetOrientation());
             trans->Append(stmt);
 
             Player::SavePositionInDB(loc, zoneId, factionChangeInfo->Guid, trans);

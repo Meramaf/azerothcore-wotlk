@@ -17,6 +17,7 @@
 
 #include "Battleground.h"
 #include "BattlegroundAV.h"
+#include "Chat.h"
 #include "GameObjectAI.h"
 #include "Group.h"
 #include "Language.h"
@@ -380,8 +381,6 @@ void WorldSession::HandleQuestgiverRequestRewardOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleQuestgiverCancel(WorldPacket& /*recvData*/)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_CANCEL");
-
     _player->PlayerTalkClass->SendCloseGossip();
 }
 
@@ -535,7 +534,6 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recvData)
 
 void WorldSession::HandleQuestgiverQuestAutoLaunch(WorldPacket& /*recvPacket*/)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_QUEST_AUTOLAUNCH");
 }
 
 void WorldSession::HandlePushQuestToParty(WorldPacket& recvPacket)
@@ -589,7 +587,7 @@ void WorldSession::HandlePushQuestToParty(WorldPacket& recvPacket)
                     // Check if player is in BG
                     if (_player->InBattleground())
                     {
-                        _player->GetSession()->SendNotification(LANG_BG_SHARE_QUEST_ERROR);
+                        ChatHandler(_player->GetSession()).SendNotification(LANG_BG_SHARE_QUEST_ERROR);
                         continue;
                     }
                 }
@@ -624,8 +622,6 @@ void WorldSession::HandleQuestPushResult(WorldPacket& recvPacket)
     uint8 msg;
     recvPacket >> guid >> questId >> msg;
 
-    LOG_DEBUG("network", "WORLD: Received MSG_QUEST_PUSH_RESULT");
-
     if (_player->GetDivider() && _player->GetDivider() == guid)
     {
         if (Player* player = ObjectAccessor::GetPlayer(*_player, _player->GetDivider()))
@@ -641,14 +637,12 @@ void WorldSession::HandleQuestPushResult(WorldPacket& recvPacket)
 
 void WorldSession::HandleQuestgiverStatusMultipleQuery(WorldPacket& /*recvPacket*/)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY");
-
-        _player->SendQuestGiverStatusMultiple();
+    _player->SendQuestGiverStatusMultiple();
 }
 
 void WorldSession::HandleQueryQuestsCompleted(WorldPacket& /*recvData*/)
 {
-    size_t rew_count = _player->GetRewardedQuestCount();
+    std::size_t rew_count = _player->GetRewardedQuestCount();
 
     WorldPacket data(SMSG_QUERY_QUESTS_COMPLETED_RESPONSE, 4 + 4 * rew_count);
     data << uint32(rew_count);

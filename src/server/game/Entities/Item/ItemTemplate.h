@@ -18,7 +18,6 @@
 #ifndef _ITEMPROTOTYPE_H
 #define _ITEMPROTOTYPE_H
 
-#include "Common.h"
 #include "SharedDefines.h"
 #include "WorldPacket.h"
 #include <unordered_map>
@@ -752,8 +751,10 @@ struct ItemTemplate
 
     [[nodiscard]] int32 getFeralBonus(int32 extraDPS = 0) const
     {
+        constexpr uint32 feralApEnabledInventoryTypeMaks = 1 << INVTYPE_WEAPON | 1 << INVTYPE_2HWEAPON | 1 << INVTYPE_WEAPONMAINHAND | 1 << INVTYPE_WEAPONOFFHAND;
+
         // 0x02A5F3 - is mask for Melee weapon from ItemSubClassMask.dbc
-        if (Class == ITEM_CLASS_WEAPON && (1 << SubClass) & 0x02A5F3)
+        if (Class == ITEM_CLASS_WEAPON && (1 << InventoryType) & feralApEnabledInventoryTypeMaks)
         {
             int32 bonus = int32((extraDPS + getDPS()) * 14.0f) - 767;
             if (bonus < 0)

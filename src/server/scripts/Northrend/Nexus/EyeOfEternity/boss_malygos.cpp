@@ -16,7 +16,8 @@
  */
 
 #include "CombatAI.h"
-#include "MoveSpline.h"
+#include "CreatureScript.h"
+#include "GameObjectScript.h"
 #include "MoveSplineInit.h"
 #include "Opcodes.h"
 #include "PassiveAI.h"
@@ -24,8 +25,8 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "Vehicle.h"
-#include "WorldSession.h"
 #include "eye_of_eternity.h"
 
 enum MovementInformPoints
@@ -536,7 +537,6 @@ public:
                                             pPlayer->SendMessageToSet(&data, true);
 
                                             sScriptMgr->AnticheatSetUnderACKmount(pPlayer);
-                                            sScriptMgr->AnticheatSetSkipOnePacketForASH(pPlayer, true);
 
                                             pPlayer->SetGuidValue(PLAYER_FARSIGHT, vp->GetGUID());
                                             c->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
@@ -719,7 +719,6 @@ public:
                                 if (Player* pPlayer = i->GetSource())
                                 {
                                     sScriptMgr->AnticheatSetUnderACKmount(pPlayer);
-                                    sScriptMgr->AnticheatSetSkipOnePacketForASH(pPlayer, true);
 
                                     if (!pPlayer->IsAlive() || pPlayer->IsGameMaster())
                                         continue;
@@ -906,7 +905,6 @@ public:
 
                 sScriptMgr->AnticheatSetCanFlybyServer(plr, false);
                 sScriptMgr->AnticheatSetUnderACKmount(plr);
-                sScriptMgr->AnticheatSetSkipOnePacketForASH(plr, true);
             }
         }
 
@@ -946,7 +944,6 @@ public:
                                 plr->SetDisableGravity(true, true);
 
                                 sScriptMgr->AnticheatSetCanFlybyServer(plr, true);
-                                sScriptMgr->AnticheatSetSkipOnePacketForASH(plr, true);
                                 sScriptMgr->AnticheatSetUnderACKmount(plr);
                             }
 
@@ -1491,59 +1488,48 @@ public:
     }
 };
 
-class spell_eoe_ph3_surge_of_power : public SpellScriptLoader
+class spell_eoe_ph3_surge_of_power : public SpellScript
 {
-public:
-    spell_eoe_ph3_surge_of_power() : SpellScriptLoader("spell_eoe_ph3_surge_of_power") { }
+    PrepareSpellScript(spell_eoe_ph3_surge_of_power);
 
-    class spell_eoe_ph3_surge_of_power_SpellScript : public SpellScript
+    ObjectGuid DrakeGUID[3];
+
+    bool Load() override
     {
-        PrepareSpellScript(spell_eoe_ph3_surge_of_power_SpellScript);
-
-        ObjectGuid DrakeGUID[3];
-
-        bool Load() override
-        {
-            if (Unit* caster = GetCaster())
-                if (Creature* c = caster->ToCreature())
-                {
-                    uint8 i = 0;
-                    std::list<Unit*> drakes;
-                    c->AI()->SelectTargetList(drakes, (c->GetMap()->GetSpawnMode() == 0 ? 1 : 3), SelectTargetMethod::Random, 0, 0.0f, false, true, 57403 /*only drakes have this aura*/);
-                    for (std::list<Unit*>::iterator itr = drakes.begin(); itr != drakes.end() && i < 3; ++itr)
-                    {
-                        DrakeGUID[i++] = (*itr)->GetGUID();
-                        if (Vehicle* v = (*itr)->GetVehicleKit())
-                            if (Unit* p = v->GetPassenger(0))
-                                if (Player* plr = p->ToPlayer())
-                                    c->AI()->Talk(EMOTE_SURGE_OF_POWER_WARNING_P3, plr);
-                    }
-                }
-
-            return true;
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            if (Unit* caster = GetCaster())
+        if (Unit* caster = GetCaster())
+            if (Creature* c = caster->ToCreature())
             {
-                targets.clear();
-                for (uint8 i = 0; i < 3; ++i)
-                    if (DrakeGUID[i])
-                        if (Unit* u = ObjectAccessor::GetUnit(*caster, DrakeGUID[i]))
-                            targets.push_back(u);
+                uint8 i = 0;
+                std::list<Unit*> drakes;
+                c->AI()->SelectTargetList(drakes, (c->GetMap()->GetSpawnMode() == 0 ? 1 : 3), SelectTargetMethod::Random, 0, 0.0f, false, true, 57403 /*only drakes have this aura*/);
+                for (std::list<Unit*>::iterator itr = drakes.begin(); itr != drakes.end() && i < 3; ++itr)
+                {
+                    DrakeGUID[i++] = (*itr)->GetGUID();
+                    if (Vehicle* v = (*itr)->GetVehicleKit())
+                        if (Unit* p = v->GetPassenger(0))
+                            if (Player* plr = p->ToPlayer())
+                                c->AI()->Talk(EMOTE_SURGE_OF_POWER_WARNING_P3, plr);
+                }
             }
-        }
 
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_eoe_ph3_surge_of_power_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        }
-    };
+        return true;
+    }
 
-    SpellScript* GetSpellScript() const override
+    void FilterTargets(std::list<WorldObject*>& targets)
     {
-        return new spell_eoe_ph3_surge_of_power_SpellScript();
+        if (Unit* caster = GetCaster())
+        {
+            targets.clear();
+            for (uint8 i = 0; i < 3; ++i)
+                if (DrakeGUID[i])
+                    if (Unit* u = ObjectAccessor::GetUnit(*caster, DrakeGUID[i]))
+                        targets.push_back(u);
+        }
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_eoe_ph3_surge_of_power::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
     }
 };
 
@@ -1559,5 +1545,5 @@ void AddSC_boss_malygos()
     new npc_hover_disk();
     new npc_eoe_wyrmrest_skytalon();
 
-    new spell_eoe_ph3_surge_of_power();
+    RegisterSpellScript(spell_eoe_ph3_surge_of_power);
 }

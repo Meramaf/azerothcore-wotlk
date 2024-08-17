@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "InstanceMapScript.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "Vehicle.h"
 #include "eye_of_eternity.h"
@@ -251,3 +251,4 @@ void AddSC_instance_eye_of_eternity()
 {
     new instance_eye_of_eternity();
 }
+

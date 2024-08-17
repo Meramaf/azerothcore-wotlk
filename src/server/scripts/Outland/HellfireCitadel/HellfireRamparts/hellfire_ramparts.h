@@ -19,7 +19,6 @@
 #define DEF_RAMPARTS_H
 
 #include "CreatureAIImpl.h"
-#include "SpellScript.h"
 
 #define DataHeader "HR"
 #define HellfireRampartsScriptName "instance_hellfire_ramparts"
@@ -51,5 +50,7 @@ inline AI* GetHellfireRampartsAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, HellfireRampartsScriptName);
 }
+
+#define RegisterHellfireRampartsCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetHellfireRampartsAI)
 
 #endif

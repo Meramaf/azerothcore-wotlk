@@ -19,10 +19,7 @@
 #define AZEROTHCORE_COMMON_H
 
 #include "Define.h"
-#include <array>
-#include <memory>
 #include <string>
-#include <utility>
 
 #if AC_PLATFORM == AC_PLATFORM_WINDOWS
 #include <ws2tcpip.h>
@@ -39,13 +36,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#endif
-
-#if AC_COMPILER == AC_COMPILER_MICROSOFT
-#define atoll _atoi64
-#define llabs _abs64
-#else
-#define stricmp strcasecmp
 #endif
 
 #define STRINGIZE(a) #a

@@ -25,10 +25,9 @@ SQLUpdate:
 EndScriptData */
 
 #include "Cell.h"
-#include "CellImpl.h"
+#include "CreatureScript.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "Weather.h"
 #include "zulaman.h"

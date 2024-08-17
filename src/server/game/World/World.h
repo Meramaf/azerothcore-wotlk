@@ -28,7 +28,6 @@
 #include "QueryResult.h"
 #include "SharedDefines.h"
 #include "Timer.h"
-#include "Unit.h"
 #include <atomic>
 #include <list>
 #include <map>
@@ -44,13 +43,13 @@ struct Realm;
 
 AC_GAME_API extern Realm realm;
 
-enum ShutdownMask
+enum ShutdownMask : uint8
 {
     SHUTDOWN_MASK_RESTART = 1,
     SHUTDOWN_MASK_IDLE    = 2,
 };
 
-enum ShutdownExitCode
+enum ShutdownExitCode : uint8
 {
     SHUTDOWN_EXIT_CODE = 0,
     ERROR_EXIT_CODE    = 1,
@@ -71,7 +70,6 @@ enum WorldTimers
     WUPDATE_PINGDB,
     WUPDATE_5_SECS,
     WUPDATE_WHO_LIST,
-    WUPDATE_DELAYED_DAMAGES,
     WUPDATE_COUNT
 };
 
@@ -154,8 +152,6 @@ class World: public IWorld
 public:
     World();
     ~World() override;
-
-    std::list<DelayedDamage> _delayedDamages;
 
     static World* instance();
 
@@ -242,16 +238,11 @@ public:
     void SetInitialWorldSettings() override;
     void LoadConfigSettings(bool reload = false) override;
 
-    void SendWorldText(uint32 string_id, ...) override;
-    void SendGlobalText(const char* text, WorldSession* self) override;
-    void SendGMText(uint32 string_id, ...) override;
     void SendGlobalMessage(WorldPacket const* packet, WorldSession* self = nullptr, TeamId teamId = TEAM_NEUTRAL) override;
     void SendGlobalGMMessage(WorldPacket const* packet, WorldSession* self = nullptr, TeamId teamId = TEAM_NEUTRAL) override;
     bool SendZoneMessage(uint32 zone, WorldPacket const* packet, WorldSession* self = nullptr, TeamId teamId = TEAM_NEUTRAL) override;
     void SendZoneText(uint32 zone, const char* text, WorldSession* self = nullptr, TeamId teamId = TEAM_NEUTRAL) override;
     void SendServerMessage(ServerMessageType messageID, std::string stringParam = "", Player* player = nullptr) override;
-
-    void SendWorldTextOptional(uint32 string_id, uint32 flag, ...) override;
 
     /// Are we in the middle of a shutdown?
     [[nodiscard]] bool IsShuttingDown() const override { return _shutdownTimer > 0; }
@@ -342,8 +333,6 @@ public:
     void LoadDBVersion() override;
     [[nodiscard]] char const* GetDBVersion() const override { return _dbVersion.c_str(); }
 
-    void LoadMotd() override;
-
     void UpdateAreaDependentAuras() override;
 
     [[nodiscard]] uint32 GetCleaningFlags() const override { return _cleaningFlags; }
@@ -355,9 +344,7 @@ public:
 
     void RemoveOldCorpses() override;
 
-    void AddDelayedDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss) override;
-
-    void ProcessDelayedDamages();
+    void DoForAllOnlinePlayers(std::function<void(Player*)> exec) override;
 
 protected:
     void _UpdateGameTime();

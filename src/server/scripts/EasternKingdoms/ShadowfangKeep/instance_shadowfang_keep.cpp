@@ -15,10 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "InstanceMapScript.h"
 #include "InstanceScript.h"
-#include "ScriptMgr.h"
+#include "SpellScriptLoader.h"
 #include "TemporarySummon.h"
 #include "shadowfang_keep.h"
+#include "SpellAuraEffects.h"
+#include "SpellScript.h"
 
 enum Spells
 {
@@ -234,3 +237,4 @@ void AddSC_instance_shadowfang_keep()
     new spell_shadowfang_keep_haunting_spirits();
     new spell_shadowfang_keep_forsaken_skills();
 }
+

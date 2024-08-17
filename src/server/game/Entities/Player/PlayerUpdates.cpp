@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AchievementMgr.h"
 #include "BattlefieldMgr.h"
 #include "CellImpl.h"
 #include "Channel.h"
@@ -35,6 +36,7 @@
 #include "SpellMgr.h"
 #include "UpdateFieldFlags.h"
 #include "Vehicle.h"
+#include "Weather.h"
 #include "WeatherMgr.h"
 #include "WorldStatePackets.h"
 
@@ -311,7 +313,7 @@ void Player::Update(uint32 p_time)
         RegenerateAll();
     }
 
-    if (m_deathState == JUST_DIED)
+    if (m_deathState == DeathState::JustDied)
         KillPlayer();
 
     if (m_nextSave)
@@ -433,31 +435,27 @@ void Player::UpdateNextMailTimeAndUnreads()
 {
     // Update the next delivery time and unread mails
     time_t cTime = GameTime::GetGameTime().count();
-    // Get the next delivery time
-    CharacterDatabasePreparedStatement* stmtNextDeliveryTime =
-        CharacterDatabase.GetPreparedStatement(CHAR_SEL_NEXT_MAIL_DELIVERYTIME);
-    stmtNextDeliveryTime->SetData(0, GetGUID().GetCounter());
-    stmtNextDeliveryTime->SetData(1, uint32(cTime));
-    PreparedQueryResult resultNextDeliveryTime =
-        CharacterDatabase.Query(stmtNextDeliveryTime);
-    if (resultNextDeliveryTime)
-    {
-        Field* fields          = resultNextDeliveryTime->Fetch();
-        m_nextMailDelivereTime = time_t(fields[0].Get<uint32>());
-    }
 
-    // Get unread mails count
-    CharacterDatabasePreparedStatement* stmtUnreadAmount =
-        CharacterDatabase.GetPreparedStatement(
-            CHAR_SEL_CHARACTER_MAILCOUNT_UNREAD_SYNCH);
-    stmtUnreadAmount->SetData(0, GetGUID().GetCounter());
-    stmtUnreadAmount->SetData(1, uint32(cTime));
-    PreparedQueryResult resultUnreadAmount =
-        CharacterDatabase.Query(stmtUnreadAmount);
-    if (resultUnreadAmount)
+    m_nextMailDelivereTime = 0;
+    unReadMails = 0;
+
+    for (Mail const* mail : GetMails())
     {
-        Field* fields = resultUnreadAmount->Fetch();
-        unReadMails   = uint8(fields[0].Get<uint64>());
+        if (mail->deliver_time > cTime)
+        {
+            if (!m_nextMailDelivereTime || m_nextMailDelivereTime > mail->deliver_time)
+                m_nextMailDelivereTime = mail->deliver_time;
+        }
+
+        // must be not checked yet
+        if (mail->checked & MAIL_CHECK_MASK_READ)
+            continue;
+
+        // and already delivered or expired
+        if (cTime < mail->deliver_time || cTime > mail->expire_time)
+            continue;
+
+        unReadMails++;
     }
 }
 
@@ -727,6 +725,7 @@ bool Player::UpdateGatherSkill(uint32 SkillId, uint32 SkillValue,
 
     uint32 gathering_skill_gain =
         sWorld->getIntConfig(CONFIG_SKILL_GAIN_GATHERING);
+    sScriptMgr->OnUpdateGatheringSkill(this, SkillId, SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25, gathering_skill_gain);
 
     // For skinning and Mining chance decrease with level. 1-74 - no decrease,
     // 75-149 - 2 times, 225-299 - 8 times
@@ -794,8 +793,8 @@ bool Player::UpdateCraftSkill(uint32 spellid)
                 GetPureSkillValue(_spell_idx->second->SkillLine);
 
             // Alchemy Discoveries here
-            SpellInfo const* spellEntry = sSpellMgr->GetSpellInfo(spellid);
-            if (spellEntry && spellEntry->Mechanic == MECHANIC_DISCOVERY)
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellid);
+            if (spellInfo && spellInfo->Mechanic == MECHANIC_DISCOVERY)
             {
                 if (uint32 discoveredSpell = GetSkillDiscoverySpell(
                         _spell_idx->second->SkillLine, spellid, this))
@@ -804,6 +803,7 @@ bool Player::UpdateCraftSkill(uint32 spellid)
 
             uint32 craft_skill_gain =
                 sWorld->getIntConfig(CONFIG_SKILL_GAIN_CRAFTING);
+            sScriptMgr->OnUpdateCraftingSkill(this, _spell_idx->second, SkillValue, craft_skill_gain);
 
             return UpdateSkillPro(
                 _spell_idx->second->SkillLine,
@@ -864,7 +864,7 @@ bool Player::UpdateFishingSkill()
 // bonus abilities in sSkillLineAbilityStore
 // Used only to avoid scan DBC at each skill grow
 static uint32       bonusSkillLevels[] = {75, 150, 225, 300, 375, 450};
-static const size_t bonusSkillLevelsSize =
+static const std::size_t bonusSkillLevelsSize =
     sizeof(bonusSkillLevels) / sizeof(uint32);
 
 bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
@@ -908,7 +908,7 @@ bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
         if (itr->second.uState != SKILL_NEW)
             itr->second.uState = SKILL_CHANGED;
 
-        for (size_t i = 0; i < bonusSkillLevelsSize; ++i)
+        for (std::size_t i = 0; i < bonusSkillLevelsSize; ++i)
         {
             uint32 bsl = bonusSkillLevels[i];
             if (SkillValue < bsl && new_value >= bsl)
@@ -1322,7 +1322,7 @@ void Player::UpdateEquipSpellsAtFormChange()
     }
 
     // item set bonuses not dependent from item broken state
-    for (size_t setindex = 0; setindex < ItemSetEff.size(); ++setindex)
+    for (std::size_t setindex = 0; setindex < ItemSetEff.size(); ++setindex)
     {
         ItemSetEffect* eff = ItemSetEff[setindex];
         if (!eff)
@@ -1735,7 +1735,7 @@ void Player::UpdateTriggerVisibility()
     if (!udata.HasData())
         return;
 
-    udata.BuildPacket(&packet);
+    udata.BuildPacket(packet);
     GetSession()->SendPacket(&packet);
 }
 
@@ -1787,7 +1787,7 @@ void Player::UpdateForQuestWorldObjects()
         }
     }
 
-    udata.BuildPacket(&packet);
+    udata.BuildPacket(packet);
     GetSession()->SendPacket(&packet);
 }
 

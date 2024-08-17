@@ -15,22 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CellImpl.h"
+#include "CreatureScript.h"
+#include "CreatureTextMgr.h"
+#include "GridNotifiers.h"
+#include "MapMgr.h"
+#include "ScriptedCreature.h"
+#include "SpellAuraEffects.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
+#include "Vehicle.h"
 /*
  * Scripts for spells with SPELLFAMILY_GENERIC spells used for quests.
  * Ordered alphabetically using questId and scriptname.
  * Scriptnames of files in this file should be prefixed with "spell_q#questID_".
  */
-
-#include "CellImpl.h"
-#include "CreatureTextMgr.h"
-#include "GridNotifiers.h"
-#include "MapMgr.h"
-#include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
-#include "SpellAuras.h"
-#include "SpellScript.h"
-#include "Vehicle.h"
 
 class spell_q11065_wrangle_some_aether_rays : public SpellScript
 {
@@ -437,68 +436,24 @@ enum q11520Roots
     SPELL_SUMMON_RAZORTHORN_ROOT        = 44941,
 };
 
-    class spell_q11520_discovering_your_roots : public SpellScript
-    {
-        PrepareSpellScript(spell_q11520_discovering_your_roots);
-
-        void HandleDummy(SpellEffIndex /*effIndex*/)
-        {
-            if (GameObject* go = GetCaster()->FindNearestGameObject(GO_RAZORTHORN_DIRT_MOUNT, 20.0f))
-            {
-                GetCaster()->GetMotionMaster()->MovePoint(0, *go);
-                go->SetLootState(GO_JUST_DEACTIVATED);
-                GetCaster()->CastSpell(GetCaster(), SPELL_SUMMON_RAZORTHORN_ROOT, true);
-            }
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_q11520_discovering_your_roots::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-class spell_quest_dragonmaw_race_generic : public SpellScript
+class spell_q11520_discovering_your_roots : public SpellScript
 {
-    PrepareSpellScript(spell_quest_dragonmaw_race_generic);
+    PrepareSpellScript(spell_q11520_discovering_your_roots);
 
-    bool Load() override
+    void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        _x = _y = _z = 0.0f;
-        return true;
-    }
-
-    SpellCastResult RelocateDest()
-    {
-        Unit* caster = GetCaster();
-        float o = Position::NormalizeOrientation(caster->GetOrientation() + frand(0.0f, 2 * M_PI));
-        float dist = frand(5.0f, 30.0f);
-        _x = caster->GetPositionX() + dist * cos(o);
-        _y = caster->GetPositionY() + dist * std::sin(o);
-        _z = caster->GetPositionZ() + frand(-10.0f, 15.0f);
-        GetSpell()->m_targets.SetDst(_x, _y, _z, 0.0f, caster->GetMapId());
-        return SPELL_CAST_OK;
-    }
-
-    void ChangeDest(SpellEffIndex effIndex)
-    {
-        PreventHitDefaultEffect(effIndex);
-        Unit* caster = GetCaster();
-        if (Creature* trigger = caster->SummonCreature(23356, _x, _y, _z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 1500))
+        if (GameObject* go = GetCaster()->FindNearestGameObject(GO_RAZORTHORN_DIRT_MOUNT, 20.0f))
         {
-            trigger->CastSpell(trigger, GetSpellInfo()->Effects[effIndex].TriggerSpell, true);
-            if (GetSpellInfo()->Effects[effIndex].TriggerSpell == 41064)
-                trigger->CastSpell(trigger, 41284, true);
+            GetCaster()->GetMotionMaster()->MovePoint(0, *go);
+            go->SetLootState(GO_JUST_DEACTIVATED);
+            GetCaster()->CastSpell(GetCaster(), SPELL_SUMMON_RAZORTHORN_ROOT, true);
         }
     }
 
     void Register() override
     {
-        OnCheckCast += SpellCheckCastFn(spell_quest_dragonmaw_race_generic::RelocateDest);
-        OnEffectHit += SpellEffectFn(spell_quest_dragonmaw_race_generic::ChangeDest, EFFECT_0, SPELL_EFFECT_TRIGGER_MISSILE);
+        OnEffectHitTarget += SpellEffectFn(spell_q11520_discovering_your_roots::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
-
-private:
-    float _x, _y, _z;
 };
 
 class spell_q11670_it_was_the_orcs_honest : public SpellScript
@@ -661,7 +616,7 @@ class spell_q12274_a_fall_from_grace_costume : public SpellScript
 {
     PrepareSpellScript(spell_q12274_a_fall_from_grace_costume)
 
-    bool Validate(SpellInfo const* /*SpellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_SCARLET_RAVEN_PRIEST_IMAGE_MALE, SPELL_SCARLET_RAVEN_PRIEST_IMAGE_FEMALE });
     }
@@ -912,7 +867,7 @@ class spell_q5206_test_fetid_skull : public SpellScript
         return GetCaster()->GetTypeId() == TYPEID_PLAYER;
     }
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_CREATE_RESONATING_SKULL, SPELL_CREATE_BONE_DUST });
     }
@@ -974,6 +929,9 @@ class spell_q6124_6129_apply_salve : public SpellScript
                 if (newEntry)
                 {
                     creatureTarget->UpdateEntry(newEntry);
+                    creatureTarget->GetMotionMaster()->Clear();
+                    creatureTarget->GetMotionMaster()->MoveFleeing(caster);
+                    creatureTarget->SetUnitFlag(UNIT_FLAG_NOT_ATTACKABLE_1);
                     creatureTarget->DespawnOrUnsummon(DESPAWN_TIME);
                     caster->KilledMonsterCredit(newEntry);
                 }
@@ -1023,7 +981,7 @@ class spell_q11396_11399_scourging_crystal_controller : public SpellScript
 {
     PrepareSpellScript(spell_q11396_11399_scourging_crystal_controller);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_FORCE_SHIELD_ARCANE_PURPLE_X3, SPELL_SCOURGING_CRYSTAL_CONTROLLER });
     }
@@ -1048,7 +1006,7 @@ class spell_q11396_11399_scourging_crystal_controller_dummy : public SpellScript
 {
     PrepareSpellScript(spell_q11396_11399_scourging_crystal_controller_dummy);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_FORCE_SHIELD_ARCANE_PURPLE_X3 });
     }
@@ -1098,7 +1056,7 @@ class spell_q11587_arcane_prisoner_rescue : public SpellScript
 {
     PrepareSpellScript(spell_q11587_arcane_prisoner_rescue);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
             {
@@ -1153,7 +1111,7 @@ class spell_q11730_ultrasonic_screwdriver : public SpellScript
         return GetCaster()->GetTypeId() == TYPEID_PLAYER && GetCastItem();
     }
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
             {
@@ -1265,7 +1223,7 @@ class spell_q12634_despawn_fruit_tosser : public SpellScript
 {
     PrepareSpellScript(spell_q12634_despawn_fruit_tosser);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
             {
@@ -1391,7 +1349,7 @@ class spell_q12937_relief_for_the_fallen : public SpellScript
         return GetCaster()->GetTypeId() == TYPEID_PLAYER;
     }
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo({ SPELL_TRIGGER_AID_OF_THE_EARTHEN });
     }
@@ -1424,7 +1382,7 @@ class spell_q10041_q10040_who_are_they : public SpellScript
 {
     PrepareSpellScript(spell_q10041_q10040_who_are_they);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
             {
@@ -1618,7 +1576,7 @@ class spell_q14112_14145_chum_the_water : public SpellScript
 {
     PrepareSpellScript(spell_q14112_14145_chum_the_water);
 
-    bool Validate(SpellInfo const* /*spellEntry*/) override
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
         return ValidateSpellInfo(
             {
@@ -2448,6 +2406,50 @@ class spell_q4735_collect_rookery_egg : public SpellScript
     }
 };
 
+enum BookOfFelNames
+{
+    SPELL_METAMORPHOSIS   = 36298
+};
+
+class spell_q10651_q10692_book_of_fel_names : public SpellScript
+{
+    PrepareSpellScript(spell_q10651_q10692_book_of_fel_names);
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (GetHitUnit()->HasAura(SPELL_METAMORPHOSIS))
+            GetHitUnit()->RemoveAurasDueToSpell(SPELL_METAMORPHOSIS);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_q10651_q10692_book_of_fel_names::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+enum Feralfen
+{
+    NPC_FERALFEN_TOTEM    = 18186
+};
+
+class spell_q9847_a_spirit_ally : public SpellScript
+{
+    PrepareSpellScript(spell_q9847_a_spirit_ally);
+
+    void HandleSendEvent(SpellEffIndex /*effIndex*/)
+    {
+        float dist = 5.0f;
+        float angle = GetCaster()->GetOrientation() - 1.25f;
+        Position pos = GetCaster()->GetNearPosition(dist, angle);
+        GetCaster()->SummonCreature(NPC_FERALFEN_TOTEM, pos, TEMPSUMMON_TIMED_DESPAWN, 1 * MINUTE * IN_MILLISECONDS);
+    }
+
+    void Register() override
+    {
+        OnEffectHit += SpellEffectFn(spell_q9847_a_spirit_ally::HandleSendEvent, EFFECT_0, SPELL_EFFECT_SEND_EVENT);
+    }
+};
+
 void AddSC_quest_spell_scripts()
 {
     RegisterSpellAndAuraScriptPair(spell_q11065_wrangle_some_aether_rays, spell_q11065_wrangle_some_aether_rays_aura);
@@ -2462,7 +2464,6 @@ void AddSC_quest_spell_scripts()
     RegisterSpellScript(spell_q12943_shadow_vault_decree);
     RegisterSpellAndAuraScriptPair(spell_q10769_dissension_amongst_the_ranks, spell_q10769_dissension_amongst_the_ranks_aura);
     RegisterSpellScript(spell_q11520_discovering_your_roots);
-    RegisterSpellScript(spell_quest_dragonmaw_race_generic);
     RegisterSpellScript(spell_q11670_it_was_the_orcs_honest);
     RegisterSpellScript(spell_quest_test_flight_charging);
     RegisterSpellScript(spell_q12274_a_fall_from_grace_costume);
@@ -2519,4 +2520,7 @@ void AddSC_quest_spell_scripts()
     RegisterSpellScript(spell_q12919_gymers_throw);
     RegisterSpellScript(spell_q5056_summon_shy_rotam);
     RegisterSpellScript(spell_q4735_collect_rookery_egg);
+    RegisterSpellScript(spell_q10651_q10692_book_of_fel_names);
+    RegisterSpellScript(spell_q9847_a_spirit_ally);
 }
+

@@ -45,6 +45,7 @@ enum AuthStatus
     STATUS_CLOSED
 };
 
+// cppcheck-suppress ctuOneDefinitionRuleViolation
 struct AccountInfo
 {
     void LoadResult(Field* fields);
@@ -112,7 +113,7 @@ private:
 struct AuthHandler
 {
     AuthStatus status;
-    size_t packetSize;
+    std::size_t packetSize;
     bool (AuthSession::* handler)();
 };
 
