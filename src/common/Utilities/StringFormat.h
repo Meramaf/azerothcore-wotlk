@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,33 +19,19 @@
 #define _STRING_FORMAT_H_
 
 #include "Define.h"
+#include <fmt/chrono.h>
 #include <fmt/format.h>
 #include <fmt/printf.h>
 #include <locale>
 
 namespace Acore
 {
-    /// Default AC string format function.
-    template<typename Format, typename... Args>
-    inline std::string StringFormat(Format&& fmt, Args&& ... args)
-    {
-        try
-        {
-            return fmt::sprintf(std::forward<Format>(fmt), std::forward<Args>(args)...);
-        }
-        catch (const fmt::format_error& formatError)
-        {
-            std::string error = "An error occurred formatting string \"" + std::string(fmt) + "\" : " + std::string(formatError.what());
-            return error;
-        }
-    }
-
     template<typename... Args>
     using FormatString = fmt::format_string<Args...>;
 
-    // Default string format function.
+    /// Default AC string format function.
     template<typename... Args>
-    inline std::string StringFormatFmt(FormatString<Args...> fmt, Args&&... args)
+    inline std::string StringFormat(FormatString<Args...> fmt, Args&&... args)
     {
         try
         {

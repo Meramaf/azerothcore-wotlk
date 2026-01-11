@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -204,7 +204,7 @@ public:
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
 
-            switch(events.ExecuteEvent())
+            switch (events.ExecuteEvent())
             {
                 case 0:
                     break;
@@ -225,14 +225,14 @@ public:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                         me->CastSpell(target, SPELL_WELL_OF_SOULS, false);
                     events.Repeat(25s, 30s);
-                    events.DelayEventsToMax(4000, 0);
+                    events.DelayEventsToMax(4s, 0);
                     break;
                 case EVENT_SPELL_UNLEASHED_SOULS:
                     me->CastSpell(me, SPELL_UNLEASHED_SOULS, false);
                     Talk(SAY_FACE_UNLEASH_SOUL);
                     Talk(EMOTE_UNLEASH_SOUL);
                     events.Repeat(30s, 40s);
-                    events.DelayEventsToMax(5000, 0);
+                    events.DelayEventsToMax(5s, 0);
                     me->setAttackTimer(BASE_ATTACK, 5500);
                     break;
                 case EVENT_SPELL_WAILING_SOULS:
@@ -241,7 +241,7 @@ public:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
                         me->CastCustomSpell(SPELL_WAILING_SOULS_TARGETING, SPELLVALUE_MAX_TARGETS, 1, target, false);
                     events.Repeat(80s);
-                    events.DelayEventsToMax(20000, 0);
+                    events.DelayEventsToMax(20s, 0);
                     break;
             }
 
@@ -258,7 +258,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() != TYPEID_PLAYER)
+            if (!victim->IsPlayer())
                 return;
 
             int32 textId = 0;
@@ -347,7 +347,7 @@ class spell_wailing_souls_periodic_aura : public AuraScript
             {
                 t->SetControlled(false, UNIT_STATE_ROOT);
                 t->DisableRotate(false);
-                if (t->GetTypeId() == TYPEID_UNIT)
+                if (t->IsCreature())
                     t->ToCreature()->SetReactState(REACT_AGGRESSIVE);
                 if (t->GetVictim())
                 {
@@ -371,4 +371,3 @@ void AddSC_boss_devourer_of_souls()
     new boss_devourer_of_souls();
     RegisterSpellScript(spell_wailing_souls_periodic_aura);
 }
-

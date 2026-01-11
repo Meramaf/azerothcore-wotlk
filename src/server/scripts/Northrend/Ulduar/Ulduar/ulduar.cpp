@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -79,7 +79,11 @@ enum UldSpells
     SPELL_SIMPLE_TELEPORT       = 12980,
     SPELL_KEEPER_TELEPORT       = 62940,
     SPELL_SNOW_MOUND_PARTICLES  = 64615,
-    SPELL_ENERGY_SAP_10         = 64740
+    SPELL_ENERGY_SAP_10         = 64740,
+
+    // Arachnopod Destroyer
+    SPELL_FLAME_SPRAY           = 64717,
+    SPELL_MACHINE_GUN           = 64776,
 };
 
 class npc_ulduar_keeper : public CreatureScript
@@ -239,7 +243,7 @@ struct npc_ulduar_snow_mound : public ScriptedAI
 
     void MoveInLineOfSight(Unit* who) override
     {
-        if (!_activated && who->GetTypeId() == TYPEID_PLAYER)
+        if (!_activated && who->IsPlayer())
         {
             if (me->GetExactDist2d(who) <= 10.0f && me->GetMap()->isInLineOfSight(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 5.0f,
                 who->GetPositionX(), who->GetPositionY(), who->GetPositionZ() + 5.0f, 2, LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
@@ -473,11 +477,11 @@ public:
                     case 0:
                         break;
                     case 1:
-                        me->CastSpell(me->GetVictim(), RAID_MODE(64717, 65241), false);
+                        me->CastSpell(me->GetVictim(), SPELL_FLAME_SPRAY, false);
                         events.Repeat(15s, 25s);
                         break;
                     case 2:
-                        me->CastSpell(me->GetVictim(), RAID_MODE(64776, 65240), false);
+                        me->CastSpell(me->GetVictim(), SPELL_MACHINE_GUN, false);
                         events.Repeat(10s, 15s);
                         break;
                     case 3:
@@ -546,7 +550,7 @@ struct npc_salvaged_siege_engine : public VehicleAI
             {
                 if (Unit* turret = vehicle->GetPassenger(7))
                 {
-                    if (Vehicle* turretVehicle = me->GetVehicleKit())
+                    if (Vehicle* turretVehicle = turret->GetVehicleKit())
                     {
                         if (!turretVehicle->IsVehicleInUse())
                         {

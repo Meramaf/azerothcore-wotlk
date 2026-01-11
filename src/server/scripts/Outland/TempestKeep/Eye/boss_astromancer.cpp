@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -108,7 +108,7 @@ struct boss_high_astromancer_solarian : public BossAI
 
     void KilledUnit(Unit* victim) override
     {
-        if (victim->GetTypeId() == TYPEID_PLAYER && roll_chance_i(50))
+        if (victim->IsPlayer() && roll_chance_i(50))
         {
             Talk(SAY_KILL);
         }
@@ -256,7 +256,7 @@ class spell_astromancer_wrath_of_the_astromancer : public AuraScript
             return;
 
         Unit* target = GetUnitOwner();
-        target->CastSpell(target, GetSpellInfo()->Effects[EFFECT_1].CalcValue(), false);
+        target->CastSpell(target, GetSpellInfo()->Effects[EFFECT_1].CalcValue(), false, nullptr, nullptr, GetCaster () ? GetCaster()->GetGUID() : ObjectGuid::Empty);
     }
 
     void Register() override
@@ -271,12 +271,12 @@ class spell_astromancer_solarian_transform : public AuraScript
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetUnitOwner()->HandleStatModifier(UnitMods(UNIT_MOD_ARMOR), TOTAL_PCT, 400.0f, true);
+        GetUnitOwner()->ApplyStatPctModifier(UNIT_MOD_ARMOR, TOTAL_PCT, 400.0f);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetUnitOwner()->HandleStatModifier(UnitMods(UNIT_MOD_ARMOR), TOTAL_PCT, 400.0f, false);
+        GetUnitOwner()->ApplyStatPctModifier(UnitMods(UNIT_MOD_ARMOR), TOTAL_PCT, -80.0f);
     }
 
     void Register() override

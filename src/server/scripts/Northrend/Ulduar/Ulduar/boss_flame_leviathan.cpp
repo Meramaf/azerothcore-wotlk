@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -16,6 +16,7 @@
  */
 
 #include "AchievementCriteriaScript.h"
+#include "AreaDefines.h"
 #include "CellImpl.h"
 #include "CombatAI.h"
 #include "CreatureScript.h"
@@ -380,8 +381,7 @@ public:
                 {
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     TurnGates(true, false);
-                    me->MonsterMoveWithSpeed(homePos.GetPositionX(), homePos.GetPositionY(), homePos.GetPositionZ(), 100.0f);
-                    me->UpdatePosition(homePos);
+                    me->GetMotionMaster()->MovePoint(0, homePos.GetPositionX(), homePos.GetPositionY(), homePos.GetPositionZ(), FORCED_MOVEMENT_NONE, 100.0f);
                     _speakTimer = 60000;
                 }
                 else if (_speakTimer > 63500)
@@ -432,7 +432,7 @@ public:
                     events.Repeat(20s);
                     return;
                 case EVENT_SUMMON:
-                    if(summons.size() < 20)
+                    if (summons.size() < 20)
                         if (Creature* lift = DoSummonFlyer(NPC_MECHANOLIFT, me, 30.0f, 50.0f, 0))
                             lift->GetMotionMaster()->MoveRandom(100);
 
@@ -447,7 +447,7 @@ public:
                 case EVENT_REINSTALL:
                     for (uint8 i = RAID_MODE(0, 2); i < 4; ++i)
                         if (Unit* seat = vehicle->GetPassenger(i))
-                            if (seat->GetTypeId() == TYPEID_UNIT)
+                            if (seat->IsCreature())
                                 seat->ToCreature()->AI()->EnterEvadeMode();
                     Talk(FLAME_LEVIATHAN_EMOTE_REACTIVATE);
                     return;
@@ -474,9 +474,9 @@ public:
                     return;
             }
 
-            if(me->isAttackReady() && !me->HasUnitState(UNIT_STATE_STUNNED))
+            if (me->isAttackReady() && !me->HasUnitState(UNIT_STATE_STUNNED))
             {
-                if(me->IsWithinCombatRange(me->GetVictim(), 15.0f))
+                if (me->IsWithinCombatRange(me->GetVictim(), 15.0f))
                 {
                     me->CastSpell(me->GetVictim(), SPELL_BATTERING_RAM, false);
                     me->resetAttackTimer();
@@ -657,7 +657,7 @@ void boss_flame_leviathan::boss_flame_leviathanAI::KilledUnit(Unit* who)
     if (who == me->GetVictim())
         events.RescheduleEvent(EVENT_PURSUE, 0ms);
 
-    if (who->GetTypeId() == TYPEID_PLAYER)
+    if (who->IsPlayer())
         Talk(FLAME_LEVIATHAN_SAY_SLAY);
 }
 
@@ -747,7 +747,7 @@ public:
                     _despawnTimer = 0;
                     if (Vehicle* veh = me->GetVehicle())
                         if (veh->GetPassenger(0) == me || veh->GetPassenger(1) == me)
-                            me->DespawnOrUnsummon(1);
+                            me->DespawnOrUnsummon(1ms);
                 }
             }
 
@@ -758,7 +758,7 @@ public:
 
         void PassengerBoarded(Unit* who, int8 seatId, bool apply) override
         {
-            if (who->GetTypeId() != TYPEID_PLAYER || !me->GetVehicle())
+            if (!who->IsPlayer() || !me->GetVehicle())
                 return;
 
             who->ApplySpellImmune(63847, IMMUNITY_ID, 63847, apply); // SPELL_FLAME_VENTS_TRIGGER
@@ -780,7 +780,7 @@ public:
                     {
                         turret->ReplaceAllUnitFlags(UNIT_FLAG_NOT_SELECTABLE);
                         turret->SetImmuneToAll(true);
-                        if (turret->GetTypeId() == TYPEID_UNIT)
+                        if (turret->IsCreature())
                             turret->ToCreature()->AI()->EnterEvadeMode();
                     }
                 }
@@ -829,7 +829,7 @@ public:
 
         bool CanAIAttack(Unit const* who) const override
         {
-            if (!who || who->GetTypeId() != TYPEID_PLAYER || !who->GetVehicle() || who->GetVehicleBase()->GetEntry() != NPC_SEAT)
+            if (!who || !who->IsPlayer() || !who->GetVehicle() || who->GetVehicleBase()->GetEntry() != NPC_SEAT)
                 return false;
             return true;
         }
@@ -1036,7 +1036,7 @@ public:
             _switchTargetTimer += diff;
             if (_switchTargetTimer >= 30000)
             {
-                if(Unit* target = me->SelectNearbyTarget(nullptr, 200.0f))
+                if (Unit* target = me->SelectNearbyTarget(nullptr, 200.0f))
                 {
                     if (target->GetVehicleBase() && target->GetVehicleBase()->GetEntry() == NPC_SEAT)
                     {
@@ -1089,7 +1089,8 @@ public:
         {
             summons.DespawnAll();
             _spellTimer = 0;
-            Start(false, false, ObjectGuid::Empty, nullptr, false, true);
+            me->SetWalk(true);
+            Start(false, ObjectGuid::Empty, nullptr, false, true);
             if (Aura* aur = me->AddAura(SPELL_FREYA_DUMMY_YELLOW, me))
             {
                 aur->SetMaxDuration(-1);
@@ -1156,7 +1157,7 @@ public:
 
                     _beamTimer = 0;
                     _removeTimer = 1;
-                    me->DespawnOrUnsummon(5 * IN_MILLISECONDS);
+                    me->DespawnOrUnsummon(5s);
                 }
             }
             if (_removeTimer)
@@ -1231,7 +1232,7 @@ public:
         {
             if (!_lock)
             {
-                if (who->GetTypeId() != TYPEID_PLAYER && !who->IsVehicle())
+                if (!who->IsPlayer() && !who->IsVehicle())
                     return;
 
                 // MIMIRON
@@ -1363,7 +1364,7 @@ public:
                     liquid->CastSpell(liquid, SPELL_DUST_CLOUD_IMPACT, true);
                 }
 
-                me->DespawnOrUnsummon(1);
+                me->DespawnOrUnsummon(1ms);
             }
         }
 
@@ -1415,7 +1416,7 @@ public:
                 _startTimer -= diff;
                 if (_startTimer <= 0)
                 {
-                    me->GetMotionMaster()->MovePath(3000000 + urand(0, 11), true);
+                    me->GetMotionMaster()->MoveWaypoint(3000000 + urand(0, 11), true);
                     _startTimer = 0;
                 }
             }
@@ -1575,11 +1576,6 @@ class spell_systems_shutdown_aura : public AuraScript
 
 class FlameLeviathanPursuedTargetSelector
 {
-    enum Area
-    {
-        AREA_FORMATION_GROUNDS = 4652,
-    };
-
 public:
     explicit FlameLeviathanPursuedTargetSelector() {};
 
@@ -1669,7 +1665,7 @@ class spell_vehicle_throw_passenger : public SpellScript
                 std::list<WorldObject*> targetList;
                 Acore::WorldObjectSpellAreaTargetCheck check(99, GetExplTargetDest(), GetCaster(), GetCaster(), GetSpellInfo(), TARGET_CHECK_DEFAULT, nullptr);
                 Acore::WorldObjectListSearcher<Acore::WorldObjectSpellAreaTargetCheck> searcher(GetCaster(), targetList, check);
-                Cell::VisitAllObjects(GetCaster(), searcher, 99.0f);
+                Cell::VisitObjects(GetCaster(), searcher, 99.0f);
                 float minDist = 99 * 99;
                 Unit* target = nullptr;
                 for (std::list<WorldObject*>::iterator itr = targetList.begin(); itr != targetList.end(); ++itr)
@@ -1753,8 +1749,8 @@ class spell_vehicle_grab_pyrite : public SpellScript
                     GetCaster()->CastSpell(parent, SPELL_ADD_PYRITE, true);
                     target->CastSpell(seat, GetEffectValue());
 
-                    if (target->GetTypeId() == TYPEID_UNIT)
-                        target->ToCreature()->DespawnOrUnsummon(1300);
+                    if (target->IsCreature())
+                        target->ToCreature()->DespawnOrUnsummon(1300ms);
                 }
             }
     }
@@ -1927,7 +1923,7 @@ class spell_demolisher_ride_vehicle : public SpellScript
 
     SpellCastResult CheckCast()
     {
-        if (GetCaster()->GetTypeId() != TYPEID_PLAYER)
+        if (!GetCaster()->IsPlayer())
             return SPELL_CAST_OK;
 
         Unit* target = this->GetExplTargetUnit();

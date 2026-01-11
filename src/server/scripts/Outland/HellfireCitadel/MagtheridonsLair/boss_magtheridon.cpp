@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -215,7 +215,7 @@ struct boss_magtheridon : public BossAI
                 });
             }
         }
-        else if (action == ACTION_BANISH_SELF )
+        else if (action == ACTION_BANISH_SELF)
         {
             Talk(SAY_BANISH);
             me->CastSpell(me, SPELL_SHADOW_CAGE_STUN, true);
@@ -284,7 +284,7 @@ struct npc_target_trigger : public ScriptedAI
             _scheduler.Schedule(5s, [this](TaskContext /*context*/)
             {
                 DoCastSelf(SPELL_DEBRIS_DAMAGE);
-                me->DespawnOrUnsummon(6000);
+                me->DespawnOrUnsummon(6s);
             });
         }
     }
@@ -416,7 +416,7 @@ public:
 
     bool OnGossipHello(Player* player, GameObject* /*go*/) override
     {
-        if (player->HasAura(SPELL_MIND_EXHAUSTION) || player->HasAura(SPELL_SHADOW_GRASP))
+        if (player->HasAnyAuras(SPELL_MIND_EXHAUSTION, SPELL_SHADOW_GRASP))
             return true;
 
         if (Creature* trigger = player->FindNearestCreature(NPC_HELLFIRE_RAID_TRIGGER, 10.0f))

@@ -1,26 +1,19 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-/* ScriptData
-Name: modify_commandscript
-%Complete: 100
-Comment: All modify related commands
-Category: commandscripts
-EndScriptData */
 
 #include "Chat.h"
 #include "CommandScript.h"
@@ -335,7 +328,7 @@ public:
         data << uint8(op);
         data << uint16(val);
         data << uint16(mark ? *mark : 65535);
-        target->GetSession()->SendPacket(&data);
+        target->SendDirectMessage(&data);
 
         return true;
     }
@@ -355,7 +348,7 @@ public:
             return false;
         }
 
-        if (target->GetTypeId() == TYPEID_PLAYER)
+        if (target->IsPlayer())
         {
             // check online security
             if (handler->HasLowerSecurity(target->ToPlayer()))
@@ -370,7 +363,7 @@ public:
         else if (target->IsPet())
         {
             Unit* owner = target->GetOwner();
-            if (owner && owner->GetTypeId() == TYPEID_PLAYER && ((Pet*)target)->IsPermanentPetFor(owner->ToPlayer()))
+            if (owner && owner->IsPlayer() && ((Pet*)target)->IsPermanentPetFor(owner->ToPlayer()))
             {
                 // check online security
                 if (handler->HasLowerSecurity(owner->ToPlayer()))
@@ -424,10 +417,10 @@ public:
         if (CheckModifySpeed(handler, target, allSpeed, 0.1f, 50.0f))
         {
             NotifyModification(handler, target, LANG_YOU_CHANGE_ASPEED, LANG_YOURS_ASPEED_CHANGED, allSpeed);
-            target->SetSpeed(MOVE_WALK, allSpeed);
-            target->SetSpeed(MOVE_RUN, allSpeed);
-            target->SetSpeed(MOVE_SWIM, allSpeed);
-            target->SetSpeed(MOVE_FLIGHT, allSpeed);
+            target->SetSpeed(MOVE_WALK, allSpeed, true);
+            target->SetSpeed(MOVE_RUN, allSpeed, true);
+            target->SetSpeed(MOVE_SWIM, allSpeed, true);
+            target->SetSpeed(MOVE_FLIGHT, allSpeed, true);
             return true;
         }
 
@@ -666,7 +659,7 @@ public:
         }
 
         // check online security
-        if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer()))
+        if (target->IsPlayer() && handler->HasLowerSecurity(target->ToPlayer()))
         {
             return false;
         }
@@ -843,7 +836,7 @@ public:
         {
             target = handler->GetSession()->GetPlayer();
         }
-        else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer())) // check online security
+        else if (target->IsPlayer() && handler->HasLowerSecurity(target->ToPlayer())) // check online security
         {
             return false;
         }
@@ -860,7 +853,7 @@ public:
         {
             target = handler->GetSession()->GetPlayer();
         }
-        else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer())) // check online security
+        else if (target->IsPlayer() && handler->HasLowerSecurity(target->ToPlayer())) // check online security
         {
             return false;
         }
@@ -873,7 +866,7 @@ public:
     {
         Player* target = handler->getSelectedPlayerOrSelf();
 
-        if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer())) // check online security
+        if (target->IsPlayer() && handler->HasLowerSecurity(target->ToPlayer())) // check online security
             return false;
 
         if (!target->GetAuraEffectsByType(SPELL_AURA_MOUNTED).empty())
@@ -892,7 +885,7 @@ public:
         {
             target = handler->GetSession()->GetPlayer();
         }
-        else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer())) // check online security
+        else if (target->IsPlayer() && handler->HasLowerSecurity(target->ToPlayer())) // check online security
         {
             return false;
         }

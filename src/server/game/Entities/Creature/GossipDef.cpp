@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -319,10 +319,16 @@ void PlayerMenu::SendQuestGiverQuestList(QEmote const& eEmote, std::string const
 
     if (QuestGreeting const* questGreeting = sObjectMgr->GetQuestGreeting(guid.GetTypeId(), guid.GetEntry()))
     {
-        LocaleConstant locale = _session->GetSessionDbLocaleIndex();
-        std::string strGreeting = questGreeting->Greeting[DEFAULT_LOCALE];
-        if (questGreeting->Greeting.size() > size_t(locale) && !questGreeting->Greeting.empty())
-            strGreeting = questGreeting->Greeting[locale];
+        std::string strGreeting;
+        // Check if greeting exists. Blizzlike that some creatures have empty greeting
+        if (!questGreeting->Greeting.empty())
+        {
+            LocaleConstant locale = _session->GetSessionDbLocaleIndex();
+            if (questGreeting->Greeting.size() > size_t(locale))
+                strGreeting = questGreeting->Greeting[locale];
+            else
+                strGreeting = questGreeting->Greeting[DEFAULT_LOCALE];
+        }
 
         data << strGreeting;
         data << uint32(questGreeting->EmoteDelay);
@@ -449,14 +455,14 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGU
 
         uint32 moneyRew = 0;
         Player* player = _session->GetPlayer();
-        if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->ShouldBeRewardedWithMoneyInsteadOfExp(player)))
+        if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->OnPlayerShouldBeRewardedWithMoneyInsteadOfExp(player)))
         {
             moneyRew = quest->GetRewMoneyMaxLevel();
         }
         moneyRew += quest->GetRewOrReqMoney(player ? player->GetLevel() : 0); // reward money (below max lvl)
         data << moneyRew;
         uint32 questXp;
-        if (player && !sScriptMgr->ShouldBeRewardedWithMoneyInsteadOfExp(player))
+        if (player && !sScriptMgr->OnPlayerShouldBeRewardedWithMoneyInsteadOfExp(player))
         {
             questXp = player->CalculateQuestRewardXP(quest);
         }
@@ -464,7 +470,7 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGU
         {
             questXp = 0;
         }
-        sScriptMgr->OnQuestComputeXP(player, quest, questXp);
+        sScriptMgr->OnPlayerQuestComputeXP(player, quest, questXp);
         data << questXp;
     }
 
@@ -549,7 +555,7 @@ void PlayerMenu::SendQuestQueryResponse(Quest const* quest) const
     {
         uint32 moneyRew = 0;
         Player* player = _session->GetPlayer();
-        if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->ShouldBeRewardedWithMoneyInsteadOfExp(player)))
+        if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->OnPlayerShouldBeRewardedWithMoneyInsteadOfExp(player)))
         {
             moneyRew = quest->GetRewMoneyMaxLevel();
         }
@@ -701,14 +707,14 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUI
 
     uint32 moneyRew = 0;
     Player* player = _session->GetPlayer();
-    if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->ShouldBeRewardedWithMoneyInsteadOfExp(player)))
+    if (player && (player->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) || sScriptMgr->OnPlayerShouldBeRewardedWithMoneyInsteadOfExp(player)))
     {
         moneyRew = quest->GetRewMoneyMaxLevel();
     }
     moneyRew += quest->GetRewOrReqMoney(player ? player->GetLevel() : 0); // reward money (below max lvl)
     data << moneyRew;
     uint32 questXp;
-    if (player && !sScriptMgr->ShouldBeRewardedWithMoneyInsteadOfExp(player))
+    if (player && !sScriptMgr->OnPlayerShouldBeRewardedWithMoneyInsteadOfExp(player))
     {
         questXp = player->CalculateQuestRewardXP(quest);
     }
@@ -716,7 +722,7 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUI
     {
         questXp = 0;
     }
-    sScriptMgr->OnQuestComputeXP(player, quest, questXp);
+    sScriptMgr->OnPlayerQuestComputeXP(player, quest, questXp);
     data << questXp;
 
     // rewarded honor points. Multiply with 10 to satisfy client

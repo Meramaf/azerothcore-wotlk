@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -22,6 +22,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellScriptLoader.h"
 #include "icecrown_citadel.h"
+#include "PassiveAI.h"
 
 enum Texts
 {
@@ -341,9 +342,9 @@ public:
             }
         }
 
-        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/) override
+        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
         {
-            if (target->GetTypeId() != TYPEID_PLAYER)
+            if (!target->IsPlayer())
                 return;
 
             if (damage > RAID_MODE<uint32>(23000, 25000, 23000, 25000))
@@ -352,7 +353,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (victim->IsPlayer())
                 Talk(SAY_KELESETH_KILL);
         }
 
@@ -374,7 +375,7 @@ public:
                     me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                     me->SetReactState(REACT_AGGRESSIVE);
                     me->ForceValuesUpdateAtIndex(UNIT_NPC_FLAGS);   // was in sniff. don't ask why
-                    me->m_Events.AddEvent(new StandUpEvent(*me), me->m_Events.CalculateTime(1000));
+                    me->m_Events.AddEventAtOffset(new StandUpEvent(*me), 1s);
                     DoAction(ACTION_REMOVE_INVOCATION);
                     me->SetHealth(1);
                     break;
@@ -611,9 +612,9 @@ public:
             }
         }
 
-        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/) override
+        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
         {
-            if (target->GetTypeId() != TYPEID_PLAYER)
+            if (!target->IsPlayer())
                 return;
 
             if (damage > RAID_MODE<uint32>(23000, 25000, 23000, 25000))
@@ -622,7 +623,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (victim->IsPlayer())
                 Talk(SAY_TALDARAM_KILL);
         }
 
@@ -644,7 +645,7 @@ public:
                     me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                     me->SetReactState(REACT_AGGRESSIVE);
                     me->ForceValuesUpdateAtIndex(UNIT_NPC_FLAGS);   // was in sniff. don't ask why
-                    me->m_Events.AddEvent(new StandUpEvent(*me), me->m_Events.CalculateTime(1000));
+                    me->m_Events.AddEventAtOffset(new StandUpEvent(*me), 1s);
                     DoAction(ACTION_REMOVE_INVOCATION);
                     me->SetHealth(1);
                     break;
@@ -888,7 +889,7 @@ public:
                     summon->CastSpell(summon, SPELL_KINETIC_BOMB, true, nullptr, nullptr, me->GetGUID());
                     break;
                 case NPC_SHOCK_VORTEX:
-                    summon->m_Events.AddEvent(new ShockVortexExplodeEvent(*summon), summon->m_Events.CalculateTime(4500));
+                    summon->m_Events.AddEventAtOffset(new ShockVortexExplodeEvent(*summon), 4500ms);
                     break;
                 default:
                     break;
@@ -905,9 +906,9 @@ public:
             }
         }
 
-        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/) override
+        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
         {
-            if (target->GetTypeId() != TYPEID_PLAYER)
+            if (!target->IsPlayer())
                 return;
 
             if (damage > RAID_MODE<uint32>(23000, 25000, 23000, 25000))
@@ -916,7 +917,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (victim->IsPlayer())
                 Talk(SAY_VALANAR_KILL);
         }
 
@@ -938,7 +939,7 @@ public:
                     me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                     me->SetReactState(REACT_AGGRESSIVE);
                     me->ForceValuesUpdateAtIndex(UNIT_NPC_FLAGS);   // was in sniff. don't ask why
-                    me->m_Events.AddEvent(new StandUpEvent(*me), me->m_Events.CalculateTime(1000));
+                    me->m_Events.AddEventAtOffset(new StandUpEvent(*me), 1s);
                     me->SetHealth(me->GetMaxHealth());
                     DoAction(ACTION_CAST_INVOCATION);
                     break;
@@ -1102,7 +1103,7 @@ public:
             if (_introDone)
                 return;
 
-            if (who->GetTypeId() != TYPEID_PLAYER || me->GetExactDist2d(who) > 100.0f)
+            if (!who->IsPlayer() || me->GetExactDist2d(who) > 100.0f)
             {
                 return;
             }
@@ -1212,7 +1213,7 @@ public:
 
         void JustDied(Unit* /*killer*/) override
         {
-            me->DespawnOrUnsummon(1);
+            me->DespawnOrUnsummon(1ms);
         }
 
         void UpdateAI(uint32 diff) override
@@ -1286,13 +1287,13 @@ public:
                 me->SetControlled(true, UNIT_STATE_ROOT);
                 me->StopMoving();
                 me->CastSpell(me, SPELL_FLAMES, true);
-                me->DespawnOrUnsummon(999);
+                me->DespawnOrUnsummon(999ms);
                 me->CastSpell(me, SPELL_FLAME_SPHERE_DEATH_EFFECT, true);
                 _exploded = true;
             }
         }
 
-        void SetGUID(ObjectGuid guid, int32 /*type*/) override
+        void SetGUID(ObjectGuid const& guid, int32 /*type*/) override
         {
             _chaseGUID = guid;
         }
@@ -1330,12 +1331,12 @@ public:
                 me->SetInCombatWithZone();
                 return;
             }
-            me->DespawnOrUnsummon(1);
+            me->DespawnOrUnsummon(1ms);
         }
 
-        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/) override
+        void DamageDealt(Unit* target, uint32& damage, DamageEffectType  /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
         {
-            if (target->GetTypeId() != TYPEID_PLAYER)
+            if (!target->IsPlayer())
             {
                 return;
             }
@@ -1423,7 +1424,7 @@ public:
                 case EVENT_BOMB_DESPAWN:
                     me->RemoveAllAuras();
                     me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                    me->DespawnOrUnsummon(exploded ? 5000 : 0);
+                    me->DespawnOrUnsummon(exploded ? 5s : 0ms);
                     break;
                 case EVENT_CONTINUE_FALLING:
                     me->GetMotionMaster()->MovementExpired(false);
@@ -1451,7 +1452,7 @@ class spell_blood_council_shadow_prison_aura : public AuraScript
 
     void HandleDummyTick(AuraEffect const* aurEff)
     {
-        if (GetTarget()->GetTypeId() == TYPEID_PLAYER && GetTarget()->isMoving())
+        if (GetTarget()->IsPlayer() && GetTarget()->isMoving())
         {
             GetTarget()->CastSpell(GetTarget(), SPELL_SHADOW_PRISON_DAMAGE, true, nullptr, aurEff);
         }
@@ -1506,7 +1507,7 @@ class spell_taldaram_summon_flame_ball : public SpellScript
 
     bool Load() override
     {
-        if (GetCaster()->GetTypeId() != TYPEID_UNIT)
+        if (!GetCaster()->IsCreature())
         {
             return false;
         }
@@ -1573,7 +1574,7 @@ class spell_valanar_kinetic_bomb_aura : public AuraScript
     void HandleDummyTick(AuraEffect const* /*aurEff*/)
     {
         Unit* target = GetTarget();
-        if (target->GetTypeId() != TYPEID_UNIT)
+        if (!target->IsCreature())
             return;
 
         if (Creature* bomb = target->FindNearestCreature(NPC_KINETIC_BOMB, 1.0f, true))
@@ -1710,4 +1711,3 @@ void AddSC_boss_blood_prince_council()
     RegisterSpellScript(spell_valanar_kinetic_bomb_summon);
     RegisterSpellScript(spell_blood_council_summon_shadow_resonance);
 }
-

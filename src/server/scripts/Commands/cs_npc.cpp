@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -188,6 +188,7 @@ public:
             { "whisper",        HandleNpcWhisperCommand,           SEC_GAMEMASTER, Console::No },
             { "yell",           HandleNpcYellCommand,              SEC_GAMEMASTER, Console::No },
             { "tame",           HandleNpcTameCommand,              SEC_GAMEMASTER, Console::No },
+            { "do",             HandleNpcDoActionCommand,          SEC_GAMEMASTER, Console::No },
             { "add",            npcAddCommandTable },
             { "delete",         npcDeleteCommandTable },
             { "follow",         npcFollowCommandTable },
@@ -336,7 +337,7 @@ public:
             return false;
 
         Unit* unit = handler->getSelectedUnit();
-        if (!unit || unit->GetTypeId() != TYPEID_UNIT)
+        if (!unit || !unit->IsCreature())
         {
             handler->SendErrorMessage(LANG_SELECT_CREATURE);
             return false;
@@ -373,20 +374,24 @@ public:
         return true;
     }
 
-    static bool HandleNpcDeleteCommand(ChatHandler* handler)
+    static bool HandleNpcDeleteCommand(ChatHandler* handler, Optional<ObjectGuid::LowType> lowGuid)
     {
-        Creature* unit = handler->getSelectedCreature();
+        Creature* creature;
+        if (lowGuid.has_value())
+            creature = handler->GetCreatureFromPlayerMapByDbGuid(*lowGuid);
+        else
+            creature = handler->getSelectedCreature();
 
-        if (!unit || unit->IsPet() || unit->IsTotem())
+        if (!creature || creature->IsPet() || creature->IsTotem())
         {
             handler->SendErrorMessage(LANG_SELECT_CREATURE);
             return false;
         }
 
         // Delete the creature
-        unit->CombatStop();
-        unit->DeleteFromDB();
-        unit->AddObjectToRemoveList();
+        creature->CombatStop();
+        creature->DeleteFromDB();
+        creature->AddObjectToRemoveList();
 
         handler->SendSysMessage(LANG_COMMAND_DELCREATMESSAGE);
 
@@ -481,6 +486,9 @@ public:
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
+            return false;
+
+        if (!player->GetSelectedUnit())
             return false;
 
         Creature* creature = player->GetSelectedUnit()->ToCreature();
@@ -708,25 +716,33 @@ public:
     }
 
     //move selected creature
-    static bool HandleNpcMoveCommand(ChatHandler* handler)
+    static bool HandleNpcMoveCommand(ChatHandler* handler, Optional<ObjectGuid::LowType> guid)
     {
-        Creature* creature = handler->getSelectedCreature();
+        Creature* creature;
+        if (guid.has_value())
+            creature = handler->GetCreatureFromPlayerMapByDbGuid(*guid);
+        else
+            creature = handler->getSelectedCreature();
 
         if (!creature)
             return false;
 
-        ObjectGuid::LowType lowguid = creature->GetSpawnId();
+        ObjectGuid::LowType lowGuid;
+        if (guid.has_value())
+            lowGuid = *guid;
+        else
+            lowGuid = creature->GetSpawnId();
 
-        CreatureData const* data = sObjectMgr->GetCreatureData(lowguid);
+        CreatureData const* data = sObjectMgr->GetCreatureData(lowGuid);
         if (!data)
         {
-            handler->SendErrorMessage(LANG_COMMAND_CREATGUIDNOTFOUND, lowguid);
+            handler->SendErrorMessage(LANG_COMMAND_CREATGUIDNOTFOUND, lowGuid);
             return false;
         }
 
         if (handler->GetSession()->GetPlayer()->GetMapId() != data->mapid)
         {
-            handler->SendErrorMessage(LANG_COMMAND_CREATUREATSAMEMAP, lowguid);
+            handler->SendErrorMessage(LANG_COMMAND_CREATUREATSAMEMAP, lowGuid);
             return false;
         }
 
@@ -760,7 +776,7 @@ public:
         stmt->SetData(1, y);
         stmt->SetData(2, z);
         stmt->SetData(3, o);
-        stmt->SetData(4, lowguid);
+        stmt->SetData(4, lowGuid);
 
         WorldDatabase.Execute(stmt);
 
@@ -1197,6 +1213,20 @@ public:
         return true;
     }
 
+    static bool HandleNpcDoActionCommand(ChatHandler* handler, uint32 actionId)
+    {
+        Creature* creature = handler->getSelectedCreature();
+        if (!creature)
+        {
+            handler->SendErrorMessage(LANG_SELECT_CREATURE);
+            return false;
+        }
+
+        creature->AI()->DoAction(actionId);
+        handler->PSendSysMessage(LANG_NPC_DO_ACTION, creature->GetGUID().ToString(), creature->GetEntry(), creature->GetName(), actionId);
+        return true;
+    }
+
     static bool HandleNpcAddFormationCommand(ChatHandler* handler, ObjectGuid::LowType leaderGUID)
     {
         Creature* creature = handler->getSelectedCreature();
@@ -1259,7 +1289,7 @@ public:
 
         if (!sObjectMgr->SetCreatureLinkedRespawn(creature->GetSpawnId(), linkguid))
         {
-            handler->SendErrorMessage("Selected creature can't link with guid '%u'", linkguid);
+            handler->SendErrorMessage("Selected creature can't link with guid '{}'", linkguid);
             return false;
         }
 

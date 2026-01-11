@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -304,7 +304,7 @@ void PlayerDump::InitializeTables()
             // item0 - item18
             for (uint32 j = 0; j < EQUIPMENT_SLOT_END; ++j)
             {
-                std::string itColumn = Acore::StringFormat("item%u", j);
+                std::string itColumn = Acore::StringFormat("item{}", j);
                 MarkDependentColumn(t, itColumn, GUID_TYPE_ITEM);
             }
             break;
@@ -923,7 +923,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
             if (name.empty())
             {
                 // generate a temporary name
-                std::string guidPart = Acore::StringFormat("%X", guid);
+                std::string guidPart = Acore::StringFormat("{:X}", guid);
                 std::size_t maxCharsFromOriginalName = MAX_PLAYER_NAME - guidPart.length();
 
                 name = GetColumn(ts, line, "name").substr(0, maxCharsFromOriginalName) + guidPart;

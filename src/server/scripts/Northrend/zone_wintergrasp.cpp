@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -34,6 +34,7 @@
 #include "SpellScriptLoader.h"
 #include "Vehicle.h"
 #include "World.h"
+#include <cmath>
 
 enum eWGqueuenpctext
 {
@@ -183,7 +184,7 @@ public:
             data << spellId;
             data << uint8(SPELL_FAILED_CUSTOM_ERROR);
             data << uint32(SPELL_CUSTOM_ERROR_CANT_BUILD_MORE_VEHICLES);
-            player->GetSession()->SendPacket(&data);
+            player->SendDirectMessage(&data);
         }
         return true;
     }
@@ -278,7 +279,7 @@ enum eWgQueue
     NPC_ARCANIST_BRAEDIN            = 32169,
     NPC_MAGISTER_SURDIEL            = 32170,
 
-    SPELL_FROST_ARMOR               = 31256
+    SPELL_FROST_ARMOR               = 12544
 };
 
 class npc_wg_queue : public CreatureScript
@@ -306,7 +307,7 @@ public:
         else
         {
             uint32 timer = wintergrasp->GetTimer() / 1000;
-            player->SendUpdateWorldState(4354, GameTime::GetGameTime().count() + timer);
+            player->SendUpdateWorldState(WORLD_STATE_BATTLEFIELD_WG_CLOCK_TEXTS, GameTime::GetGameTime().count() + timer);
             if (timer < 15 * MINUTE)
             {
                 AddGossipItemFor(player, WG_GOSSIP_MENU_QUEUE, 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
@@ -1089,7 +1090,7 @@ class spell_wg_reduce_damage_by_distance : public SpellScript
         float maxDistance = GetSpellInfo()->Effects[EFFECT_0].CalcRadius(GetCaster()); // Xinef: always stored in EFFECT_0
         float distance = std::min<float>(GetHitUnit()->GetDistance(*GetExplTargetDest()), maxDistance);
 
-        int32 damage = std::max<int32>(0, int32(GetHitDamage() - floor(GetHitDamage() * (distance / maxDistance))));
+        int32 damage = std::max<int32>(0, int32(GetHitDamage() - std::floor(GetHitDamage() * (distance / maxDistance))));
         SetHitDamage(damage);
     }
 

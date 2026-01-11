@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,11 +19,9 @@
 #define AZEROTHCORE_CHAT_H
 
 #include "ChatCommand.h"
-#include "Errors.h"
 #include "Player.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
-#include <vector>
 
 class ChatHandler;
 class Creature;
@@ -56,13 +54,13 @@ public:
     void SendNotification(uint32 strId, Args&&... args)
     {
         if (HasSession())
-            SendNotification(Acore::StringFormatFmt(GetAcoreString(strId), std::forward<Args>(args)...));
+            SendNotification(Acore::StringFormat(GetAcoreString(strId), std::forward<Args>(args)...));
     }
     template<typename... Args>
     void SendNotification(char const* fmt, Args&&... args)
     {
         if (HasSession())
-            SendNotification(Acore::StringFormatFmt(fmt, std::forward<Args>(args)...));
+            SendNotification(Acore::StringFormat(fmt, std::forward<Args>(args)...));
     }
 
     void SendGMText(std::string_view str);
@@ -73,7 +71,7 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendGMText(Acore::StringFormatFmt(GetAcoreString(strId), std::forward<Args>(args)...));
+                SendGMText(Acore::StringFormat(GetAcoreString(strId), std::forward<Args>(args)...));
             });
     }
     template<typename... Args>
@@ -83,7 +81,7 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendGMText(Acore::StringFormatFmt(fmt, std::forward<Args>(args)...));
+                SendGMText(Acore::StringFormat(fmt, std::forward<Args>(args)...));
             });
     }
 
@@ -95,7 +93,7 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendWorldText(Acore::StringFormatFmt(GetAcoreString(strId), std::forward<Args>(args)...));
+                SendWorldText(Acore::StringFormat(GetAcoreString(strId), std::forward<Args>(args)...));
             });
     }
     template<typename... Args>
@@ -105,7 +103,7 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendWorldText(Acore::StringFormatFmt(fmt, std::forward<Args>(args)...));
+                SendWorldText(Acore::StringFormat(fmt, std::forward<Args>(args)...));
             });
     }
 
@@ -117,7 +115,7 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendWorldTextOptional(Acore::StringFormatFmt(GetAcoreString(strId), std::forward<Args>(args)...), flag);
+                SendWorldTextOptional(Acore::StringFormat(GetAcoreString(strId), std::forward<Args>(args)...), flag);
             });
     }
     template<typename... Args>
@@ -127,12 +125,12 @@ public:
         DoForAllValidSessions([&](Player* player)
             {
                 m_session = player->GetSession();
-                SendWorldTextOptional(Acore::StringFormatFmt(fmt, std::forward<Args>(args)...), flag);
+                SendWorldTextOptional(Acore::StringFormat(fmt, std::forward<Args>(args)...), flag);
             });
     }
 
     // function with different implementation for chat/console
-    virtual char const* GetAcoreString(uint32 entry) const;
+    virtual std::string GetAcoreString(uint32 entry) const;
     virtual void SendSysMessage(std::string_view str, bool escapeCharacters = false);
 
     void SendSysMessage(uint32 entry);
@@ -142,7 +140,7 @@ public:
     void PSendSysMessage(char const* fmt, Args&&... args)
     {
         if (HasSession())
-            SendSysMessage(Acore::StringFormatFmt(fmt, std::forward<Args>(args)...));
+            SendSysMessage(Acore::StringFormat(fmt, std::forward<Args>(args)...));
     }
 
     template<typename... Args>
@@ -155,7 +153,7 @@ public:
     template<typename... Args>
     std::string PGetParseString(uint32 entry, Args&&... args) const
     {
-        return Acore::StringFormatFmt(GetAcoreString(entry), std::forward<Args>(args)...);
+        return Acore::StringFormat(GetAcoreString(entry), std::forward<Args>(args)...);
     }
 
     std::string const* GetModuleString(std::string module, uint32 id) const;
@@ -170,7 +168,7 @@ public:
     template<typename... Args>
     std::string PGetParseModuleString(std::string module, uint32 id, Args&&... args) const
     {
-        return Acore::StringFormatFmt(GetModuleString(module, id)->c_str(), std::forward<Args>(args)...);
+        return Acore::StringFormat(GetModuleString(module, id)->c_str(), std::forward<Args>(args)...);
     }
 
     void SendErrorMessage(uint32 entry);
@@ -260,7 +258,7 @@ public:
     explicit CliHandler(void* callbackArg, Print* zprint) : m_callbackArg(callbackArg), m_print(zprint) { }
 
     // overwrite functions
-    char const* GetAcoreString(uint32 entry) const override;
+    std::string GetAcoreString(uint32 entry) const override;
     void SendSysMessage(std::string_view, bool escapeCharacters) override;
     bool ParseCommands(std::string_view str) override;
     std::string GetNameLink() const override;

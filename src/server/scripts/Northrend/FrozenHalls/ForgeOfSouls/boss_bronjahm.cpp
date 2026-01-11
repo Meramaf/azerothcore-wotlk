@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -115,7 +115,7 @@ public:
                 me->GetMotionMaster()->MoveIdle();
                 me->CastSpell(me, SPELL_TELEPORT, false);
                 events.CancelEvent(EVENT_SPELL_CORRUPT_SOUL);
-                events.DelayEvents(6000);
+                events.DelayEvents(6s);
                 events.RescheduleEvent(EVENT_SPELL_FEAR, 8s, 14s);
             }
         }
@@ -143,7 +143,7 @@ public:
                 if (me->isAttackReady())
                     me->SetFacingToObject(me->GetVictim());
 
-            switch(events.ExecuteEvent())
+            switch (events.ExecuteEvent())
             {
                 case 0:
                     break;
@@ -190,7 +190,7 @@ public:
 
         void KilledUnit(Unit* who) override
         {
-            if (who->GetTypeId() == TYPEID_PLAYER)
+            if (who->IsPlayer())
                 Talk(SAY_SLAY);
         }
 
@@ -242,7 +242,7 @@ public:
                     {
                         me->GetMotionMaster()->MoveIdle();
                         me->CastSpell(b, SPELL_CONSUME_SOUL, true);
-                        me->DespawnOrUnsummon(1);
+                        me->DespawnOrUnsummon(1ms);
                         return;
                     }
 
@@ -373,4 +373,3 @@ void AddSC_boss_bronjahm()
     RegisterSpellScript(spell_bronjahm_soulstorm_visual_aura);
     RegisterSpellScript(spell_bronjahm_soulstorm_targeting);
 }
-

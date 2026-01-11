@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -84,7 +84,7 @@ public:
         if (target->GetExactDist(_source) > 175.0f)
             return false;
 
-        if (target->GetTypeId() != TYPEID_PLAYER)
+        if (!target->IsPlayer())
             return false;
 
         if (target->GetPositionX() > -337.0f)
@@ -206,8 +206,8 @@ public:
                     if (Aura* pStorm = me->GetAura(SPELL_BONE_STORM))
                         pStorm->SetDuration(int32(_boneStormDuration));
                     events.ScheduleEvent(EVENT_BONE_STORM_MOVE, 0ms);
-                    events.ScheduleEvent(EVENT_END_BONE_STORM, _boneStormDuration + 1);
-                }
+                    events.ScheduleEvent(EVENT_END_BONE_STORM, Milliseconds(_boneStormDuration + 1));
+            }
                 break;
             case EVENT_BONE_STORM_MOVE:
                 {
@@ -285,13 +285,13 @@ public:
 
     void KilledUnit(Unit* victim) override
     {
-        if (victim->GetTypeId() == TYPEID_PLAYER)
+        if (victim->IsPlayer())
             Talk(SAY_KILL);
     }
 
     void MoveInLineOfSight(Unit* who) override
     {
-        if (!_introDone && me->IsAlive() && who->GetTypeId() == TYPEID_PLAYER && me->GetExactDist2dSq(who) <= 10000.0f) // 100*100, moveinlineofsight limited to 60yd anyway
+        if (!_introDone && me->IsAlive() && who->IsPlayer() && me->GetExactDist2dSq(who) <= 10000.0f) // 100*100, moveinlineofsight limited to 60yd anyway
         {
             Talk(SAY_ENTER_ZONE);
             _introDone = true;
@@ -397,7 +397,7 @@ public:
                     trapped->NearTeleportTo(exitPos.GetPositionX(), exitPos.GetPositionY(), exitPos.GetPositionZ(), exitPos.GetOrientation(), false);
                 }
 
-            me->DespawnOrUnsummon(1);
+            me->DespawnOrUnsummon(1ms);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -415,7 +415,7 @@ public:
                 {
                     if (Unit* u = v->GetBase())
                     {
-                        if (u->GetEntry() == NPC_BONE_SPIKE && u->GetTypeId() == TYPEID_UNIT)
+                        if (u->GetEntry() == NPC_BONE_SPIKE && u->IsCreature())
                         {
                             u->ToCreature()->AI()->DoAction(-1337);
                         }
@@ -429,7 +429,7 @@ public:
                 summonerUnit->SetPetGUID(petGUID);
                 summonerUnit->GetMotionMaster()->Clear();
                 summonerUnit->StopMoving();
-                events.ScheduleEvent(1, 8000);
+                events.ScheduleEvent(1, 8s);
                 hasTrappedUnit = true;
             }
         }
@@ -443,7 +443,7 @@ public:
             {
                 if (Unit* trapped = summ->GetSummonerUnit())
                 {
-                    if (!trapped->IsOnVehicle(me) || !trapped->IsAlive() || !me->GetInstanceScript() || me->GetInstanceScript()->GetBossState(DATA_LORD_MARROWGAR) != IN_PROGRESS || trapped->HasAuraType(SPELL_AURA_SPIRIT_OF_REDEMPTION))
+                    if (!trapped->IsOnVehicle(me) || !trapped->IsAlive() || !me->GetInstanceScript() || me->GetInstanceScript()->GetBossState(DATA_LORD_MARROWGAR) != IN_PROGRESS || trapped->HasSpiritOfRedemptionAura())
                     {
                         DoAction(-1337);
                         return;
@@ -451,13 +451,13 @@ public:
                 }
                 else
                 {
-                    me->DespawnOrUnsummon(1);
+                    me->DespawnOrUnsummon(1ms);
                     return;
                 }
             }
             else
             {
-                me->DespawnOrUnsummon(1);
+                me->DespawnOrUnsummon(1ms);
                 return;
             }
 
@@ -482,7 +482,7 @@ class spell_marrowgar_coldflame : public SpellScript
     void SelectTarget(std::list<WorldObject*>& targets)
     {
         targets.clear();
-        Unit* target = GetCaster()->GetAI()->SelectTarget(SelectTargetMethod::Random, 1, -1.0f, true,true,  -SPELL_IMPALED); // -1.0f as it takes into account object size
+        Unit* target = GetCaster()->GetAI()->SelectTarget(SelectTargetMethod::Random, 0, -1.0f, true, false,  -SPELL_IMPALED); // -1.0f as it takes into account object size
         if (!target)
             target = GetCaster()->GetAI()->SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true); // if only tank or noone outside of boss' model
         if (!target)
@@ -662,4 +662,3 @@ void AddSC_boss_lord_marrowgar()
     RegisterSpellScript(spell_marrowgar_bone_storm);
     RegisterSpellScript(spell_marrowgar_bone_slice);
 }
-
